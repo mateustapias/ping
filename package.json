@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix apps/server\" \"npm run dev --prefix apps/web\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.x"
+  }
+}
