@@ -27,7 +27,7 @@ function App() {
         </span>
 
         <div
-          className={`ping-btn-wrapper relative flex items-center justify-center ${isPulsing ? "isPulsing" : ""}`}
+          className={`ping-btn-wrapper relative flex items-center justify-center ${isPulsing ? "pulsing" : ""}`}
           onAnimationEnd={() => setIsPulsing(false)}
         >
           <button
