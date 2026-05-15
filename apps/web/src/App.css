@@ -1,22 +1,13 @@
 @import "tailwindcss";
 
-/*
-  Custom animations registered in @theme so Tailwind generates
-  the animate-* utility classes (e.g. animate-counter-pop).
-*/
 @theme {
-  /* ── Color tokens ───────────────────────────
-     Usage in JSX:
-       bg-beige       text-ink       border-ink
-       bg-ink-deep    bg-ink-deeper
-       text-ink/45    border-ink/35  (opacity modifier)
-  ─────────────────────────────────────────── */
+  /* Color tokens */
   --color-beige:       #F5EFE0;
   --color-ink:         #2D2318;
   --color-ink-deep:    #1a130c;
   --color-ink-deeper:  #0e0a06;
 
-  /* ── Animation tokens ───────────────────── */
+  /* Animation tokens */
   --animate-counter-pop: counter-pop 0.2s ease-out;
   --animate-btn-press:   btn-press 0.35s ease-out forwards;
   --animate-ring-pulse:  ring-pulse 0.55s ease-out forwards;
@@ -39,11 +30,6 @@
   100% { transform: scale(1.6); opacity: 0; }
 }
 
-/*
-  The ring pulse lives in a ::after pseudo-element toggled by the .pulsing class.
-  Tailwind can't conditionally animate pseudo-elements via utility classes,
-  so this small block stays in CSS.
-*/
 .ping-btn-wrapper::after {
   content: '';
   position: absolute;
