@@ -1,57 +1,108 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import "./App.css";
+import { MatchSetupModal } from "./components/MatchSetupModal";
+import { PingButton } from "./components/PingButton";
+import { Scoreboard } from "./components/Scoreboard";
+import { PLAYER_COLORS, WS_URL } from "./constants";
+import { useWebSocket } from "./hooks/useWebSocket";
+import type { MatchState, UIScreen } from "./types/match";
 
 function App() {
-  const [count, setCount] = useState(0);
-  const [isPressing, setIsPressing] = useState(false);
-  const [isPulsing, setIsPulsing] = useState(false);
+  const [uiScreen, setUIScreen] = useState<UIScreen>("idle");
+  const [playerName, setPlayerName] = useState("");
+  const [selectedColor, setSelectedColor] = useState<string>(PLAYER_COLORS[0]);
+  const [joinCode, setJoinCode] = useState("");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [match, setMatch] = useState<MatchState | null>(null);
+  const [localCount, setLocalCount] = useState(0);
 
-  function handlePing() {
-    setCount((c) => c + 1);
-    setIsPressing(true);
-    setIsPulsing(true);
-  }
+  const screen = match !== null ? "in_match" : uiScreen;
 
-  function handleReset() {
-    setCount(0);
-  }
+  // Server message handler
+
+  const { sendMessage } = useWebSocket(WS_URL, (message) => {
+    if (message.type === "match_created") {
+      const { matchCode, player } = message.payload;
+      setMatch({ matchCode, players: [player], pingCount: 0, myPlayerId: player.id });
+    }
+
+    if (message.type === "match_state") {
+      const { matchCode, players, pingCount, myPlayerId } = message.payload;
+      setMatch({ matchCode, players, pingCount, myPlayerId });
+    }
+
+    if (message.type === "player_joined") {
+      setMatch((prev) => {
+        if (!prev) return prev;
+        return { ...prev, players: [...prev.players, message.payload.player] };
+      });
+    }
+
+    if (message.type === "player_left") {
+      setMatch((prev) => {
+        if (!prev) return prev;
+        return { ...prev, players: prev.players.filter((p) => p.id !== message.payload.playerId) };
+      });
+    }
+
+    if (message.type === "match_update") {
+      setMatch((prev) => {
+        if (!prev) return prev;
+        return { ...prev, pingCount: message.payload.pingCount, players: message.payload.players };
+      });
+    }
+
+    if (message.type === "error") {
+      setErrorMsg(message.payload.message);
+    }
+  });
+
+  // Actions
+
+  const handlePing = useCallback(() => {
+    if (screen === "in_match") sendMessage({ type: "ping" });
+    else setLocalCount((c) => c + 1);
+  }, [screen, sendMessage]);
+
+  const handleCreateMatch = useCallback(() => {
+    if (!playerName.trim()) { setErrorMsg("Escolha um nome para continuar."); return; }
+    setErrorMsg(null);
+    sendMessage({ type: "create_match", payload: { playerName: playerName.trim(), color: selectedColor } });
+  }, [playerName, selectedColor, sendMessage]);
+
+  const handleJoinMatch = useCallback(() => {
+    if (joinCode.trim().length !== 6) { setErrorMsg("Digite o código de 6 caracteres da partida."); return; }
+    if (!playerName.trim()) { setErrorMsg("Escolha um nome para continuar."); return; }
+    setErrorMsg(null);
+    sendMessage({ type: "join_match", payload: { code: joinCode.trim().toUpperCase(), playerName: playerName.trim(), color: selectedColor } });
+  }, [joinCode, playerName, selectedColor, sendMessage]);
+
+  const handleLeaveMatch = useCallback(() => {
+    setMatch(null);
+    setLocalCount(0);
+    setPlayerName("");
+    setJoinCode("");
+    setSelectedColor(PLAYER_COLORS[0]);
+    setErrorMsg(null);
+    setUIScreen("idle");
+  }, []);
 
   return (
     <main className="relative flex min-h-svh items-center justify-center bg-beige">
+
       <div className="flex flex-col items-center gap-12">
         <span
-          key={count}
+          key={match?.pingCount ?? localCount}
           className="animate-counter-pop tabular-nums text-[112px] leading-none font-extrabold tracking-[-4px] text-ink"
         >
-          {count}
+          {match?.pingCount ?? localCount}
         </span>
 
-        <div
-          className={`ping-btn-wrapper relative flex items-center justify-center ${isPulsing ? "pulsing" : ""}`}
-          onAnimationEnd={() => setIsPulsing(false)}
-        >
-          <button
-            type="button"
-            className={`h-[196px] w-[196px] cursor-pointer rounded-full border-0 bg-ink text-xl font-bold tracking-[4px] text-beige select-none [-webkit-tap-highlight-color:transparent] shadow-[0_8px_0_#1a130c,0_14px_28px_rgba(0,0,0,0.28)] ${isPressing ? "animate-btn-press" : ""}`}
-            onAnimationEnd={() => setIsPressing(false)}
-            onClick={handlePing}
-          >
-            PING
-          </button>
-        </div>
+        <PingButton onClick={handlePing} />
 
-        <button
-          type="button"
-          onClick={handleReset}
-          disabled={count === 0}
-          aria-label="Resetar contagem"
-          className="cursor-pointer text-ink/35 transition-colors duration-150 hover:text-ink/70 disabled:pointer-events-none disabled:opacity-0"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-            <path d="M3 3v5h5" />
-          </svg>
-        </button>
+        {screen === "in_match" && match && (
+          <Scoreboard players={match.players} myPlayerId={match.myPlayerId} />
+        )}
       </div>
 
       <a
@@ -66,20 +117,55 @@ function App() {
         </svg>
       </a>
 
-      <div className="fixed right-7 bottom-7 left-7 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
-        <button
-          type="button"
-          className="cursor-pointer rounded-xl border-2 border-ink/35 bg-transparent px-5 py-[11px] text-sm font-semibold tracking-[0.3px] text-ink transition-[background,border-color] duration-150 hover:border-ink/55 hover:bg-ink/7 active:bg-ink/13"
-        >
-          Entrar em partida
-        </button>
-        <button
-          type="button"
-          className="cursor-pointer rounded-xl border-2 border-ink bg-ink px-5 py-[11px] text-sm font-semibold tracking-[0.3px] text-beige transition-[background,border-color] duration-150 hover:bg-ink-deep active:bg-ink-deeper"
-        >
-          Nova partida
-        </button>
-      </div>
+      {screen === "idle" && (
+        <div className="fixed right-7 bottom-7 left-7 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
+          <button
+            type="button"
+            onClick={() => { setErrorMsg(null); setUIScreen("joining"); }}
+            className="cursor-pointer rounded-xl border-2 border-ink/35 bg-transparent px-5 py-[11px] text-sm font-semibold tracking-[0.3px] text-ink transition-[background,border-color] duration-150 hover:border-ink/55 hover:bg-ink/7 active:bg-ink/13"
+          >
+            Entrar em partida
+          </button>
+          <button
+            type="button"
+            onClick={() => { setErrorMsg(null); setUIScreen("creating"); }}
+            className="cursor-pointer rounded-xl border-2 border-ink bg-ink px-5 py-[11px] text-sm font-semibold tracking-[0.3px] text-beige transition-[background,border-color] duration-150 hover:bg-ink-deep active:bg-ink-deeper"
+          >
+            Nova partida
+          </button>
+        </div>
+      )}
+
+      {screen === "in_match" && match && (
+        <div className="fixed right-7 bottom-7 left-7 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-ink/40">Código</span>
+            <span className="text-sm font-bold tracking-widest text-ink">{match.matchCode}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleLeaveMatch}
+            className="cursor-pointer rounded-xl border-2 border-ink/35 bg-transparent px-5 py-[11px] text-sm font-semibold tracking-[0.3px] text-ink transition-[background,border-color] duration-150 hover:border-ink/55 hover:bg-ink/7 active:bg-ink/13"
+          >
+            Sair da partida
+          </button>
+        </div>
+      )}
+
+      {(screen === "creating" || screen === "joining") && (
+        <MatchSetupModal
+          mode={screen}
+          playerName={playerName}
+          onPlayerNameChange={setPlayerName}
+          selectedColor={selectedColor}
+          onColorSelect={setSelectedColor}
+          joinCode={joinCode}
+          onJoinCodeChange={setJoinCode}
+          errorMsg={errorMsg}
+          onBack={() => { setErrorMsg(null); setUIScreen("idle"); }}
+          onSubmit={screen === "creating" ? handleCreateMatch : handleJoinMatch}
+        />
+      )}
     </main>
   );
 }
