@@ -1,9 +1,8 @@
 import type { WebSocket } from '@fastify/websocket'
 import type { Player } from './types'
 
-// ─── Tipos internos do servidor ───────────────────────────────────────────────
+// Tipos internos do servidor
 
-// Jogador conectado: igual a Player dos tipos de rede, mas com a conexão WS
 export type ConnectedPlayer = Player & {
   ws: WebSocket
 }
@@ -15,11 +14,11 @@ export type Match = {
   createdAt: Date
 }
 
-// ─── Estado em memória ────────────────────────────────────────────────────────
+// Estado em memória
 
 const matches = new Map<string, Match>()
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 function generateMatchCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -30,7 +29,7 @@ function generateMatchCode(): string {
   return code
 }
 
-// ─── Funções do store ─────────────────────────────────────────────────────────
+// Funções do store
 
 export function createMatch(player: ConnectedPlayer): string {
   let code = generateMatchCode()
@@ -73,7 +72,6 @@ export function handlePing(code: string, playerId: string): number {
   return match.pingCount
 }
 
-// Retorna a partida onde o jogador estava (para broadcast de player_left)
 export function removePlayer(playerId: string): Match | null {
   for (const [code, match] of matches) {
     if (match.players.has(playerId)) {

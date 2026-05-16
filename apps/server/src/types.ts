@@ -1,4 +1,4 @@
-// ─── Mensagens: Cliente → Servidor ───────────────────────────────────────────
+// Mensagens: Cliente → Servidor
 
 type CreateMatchMessage = {
   type: 'create_match'
@@ -23,7 +23,7 @@ type PingMessage = {
 
 export type ClientMessage = CreateMatchMessage | JoinMatchMessage | PingMessage
 
-// ─── Mensagens: Servidor → Cliente ───────────────────────────────────────────
+// Mensagens: Servidor → Cliente
 
 export type Player = {
   id: string
