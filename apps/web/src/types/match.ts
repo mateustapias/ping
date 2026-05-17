@@ -21,7 +21,11 @@ type PingMessage = {
   type: 'ping'
 }
 
-export type ClientMessage = CreateMatchMessage | JoinMatchMessage | PingMessage
+type LeaveMatchMessage = {
+  type: 'leave_match'
+}
+
+export type ClientMessage = CreateMatchMessage | JoinMatchMessage | PingMessage | LeaveMatchMessage
 
 // Mensagens: Servidor → Cliente
 

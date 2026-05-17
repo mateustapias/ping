@@ -78,6 +78,7 @@ function App() {
   }, [joinCode, playerName, selectedColor, sendMessage]);
 
   const handleLeaveMatch = useCallback(() => {
+    sendMessage({ type: "leave_match" });
     setMatch(null);
     setLocalCount(0);
     setPlayerName("");
@@ -85,7 +86,7 @@ function App() {
     setSelectedColor(PLAYER_COLORS[0]);
     setErrorMsg(null);
     setUIScreen("idle");
-  }, []);
+  }, [sendMessage]);
 
   return (
     <main className="relative flex min-h-svh items-center justify-center bg-beige">

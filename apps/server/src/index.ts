@@ -137,6 +137,23 @@ app.get('/ws', { websocket: true }, (socket) => {
       })
       return
     }
+
+    if (msg.type === 'leave_match') {
+      if (!playerId) return
+
+      const match = removePlayer(playerId)
+
+      if (match) {
+        broadcast(match, {
+          type: 'player_left',
+          payload: { playerId },
+        })
+      }
+
+      matchCode = null
+      playerId = null
+      return
+    }
   })
 
   socket.on('close', () => {
