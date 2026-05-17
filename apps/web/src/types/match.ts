@@ -5,6 +5,7 @@ type CreateMatchMessage = {
   payload: {
     playerName: string
     color: string
+    duration: number
   }
 }
 
@@ -17,6 +18,10 @@ type JoinMatchMessage = {
   }
 }
 
+type StartMatchMessage = {
+  type: 'start_match'
+}
+
 type PingMessage = {
   type: 'ping'
 }
@@ -25,9 +30,9 @@ type LeaveMatchMessage = {
   type: 'leave_match'
 }
 
-export type ClientMessage = CreateMatchMessage | JoinMatchMessage | PingMessage | LeaveMatchMessage
+export type ClientMessage = CreateMatchMessage | JoinMatchMessage | StartMatchMessage | PingMessage | LeaveMatchMessage
 
-// Mensagens: Servidor → Cliente
+// Messages: Server → Client
 
 export type Player = {
   id: string
@@ -41,6 +46,8 @@ export type MatchCreatedMessage = {
   payload: {
     matchCode: string
     player: Player
+    hostId: string
+    duration: number
   }
 }
 
@@ -51,6 +58,8 @@ export type MatchStateMessage = {
     players: Player[]
     pingCount: number
     myPlayerId: string
+    hostId: string
+    duration: number
   }
 }
 
@@ -77,6 +86,22 @@ export type MatchUpdateMessage = {
   }
 }
 
+export type MatchStartedMessage = {
+  type: 'match_started'
+  payload: {
+    duration: number
+    players: Player[]
+    startedAt: string
+  }
+}
+
+export type MatchFinishedMessage = {
+  type: 'match_finished'
+  payload: {
+    players: Player[]
+  }
+}
+
 export type ErrorMessage = {
   type: 'error'
   payload: {
@@ -90,15 +115,22 @@ export type ServerMessage =
   | PlayerJoinedMessage
   | PlayerLeftMessage
   | MatchUpdateMessage
+  | MatchStartedMessage
+  | MatchFinishedMessage
   | ErrorMessage
 
-// Estado local da partida (frontend)
+// ─── Estado local da partida (frontend) ──────────────────────────────────────
+
+export type MatchPhase = 'waiting' | 'countdown' | 'playing' | 'finished'
 
 export type MatchState = {
-  matchCode: string;
-  players: Player[];
-  pingCount: number;
-  myPlayerId: string;
-};
+  matchCode: string
+  players: Player[]
+  pingCount: number
+  myPlayerId: string
+  hostId: string
+  duration: number
+  phase: MatchPhase
+}
 
-export type UIScreen = "idle" | "creating" | "joining";
+export type UIScreen = 'idle' | 'creating' | 'joining'
