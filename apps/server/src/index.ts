@@ -1,7 +1,7 @@
 import fastifyWebsocket from '@fastify/websocket'
 import type { WebSocket } from '@fastify/websocket'
 import Fastify from 'fastify'
-import { createMatch, joinMatch, getMatch, handlePing, removePlayer } from './store'
+import { createMatch, joinMatch, getMatch, handlePing, removePlayer, startMatch, finishMatch } from './store'
 import type { ConnectedPlayer, Match } from './store'
 import type { ClientMessage, Player, ServerMessage } from './types'
 
@@ -71,13 +71,16 @@ app.get('/ws', { websocket: true }, (socket) => {
         ws: socket,
       }
 
-      matchCode = createMatch(player)
+      matchCode = createMatch(player, msg.payload.duration)
+      const match = getMatch(matchCode)!
 
       send(socket, {
         type: 'match_created',
         payload: {
           matchCode,
           player: serializePlayer(player),
+          hostId: match.hostId,
+          duration: match.duration,
         },
       })
       return
@@ -96,7 +99,7 @@ app.get('/ws', { websocket: true }, (socket) => {
       const match = joinMatch(msg.payload.code, player)
 
       if (!match) {
-        send(socket, { type: 'error', payload: { message: 'Partida não encontrada.' } })
+        send(socket, { type: 'error', payload: { message: 'Partida não encontrada ou já iniciada.' } })
         return
       }
 
@@ -109,6 +112,8 @@ app.get('/ws', { websocket: true }, (socket) => {
           players: [...match.players.values()].map(serializePlayer),
           pingCount: match.pingCount,
           myPlayerId: player.id,
+          hostId: match.hostId,
+          duration: match.duration,
         },
       })
 
@@ -119,6 +124,52 @@ app.get('/ws', { websocket: true }, (socket) => {
       return
     }
 
+    if (msg.type === 'start_match') {
+      if (!matchCode || !playerId) return
+
+      const match = startMatch(matchCode, playerId)
+
+      if (!match) {
+        send(socket, { type: 'error', payload: { message: 'Não foi possível iniciar a partida.' } })
+        return
+      }
+
+      broadcast(match, {
+        type: 'match_started',
+        payload: {
+          duration: match.duration,
+          players: [...match.players.values()].map(serializePlayer),
+          startedAt: match.startedAt!.toISOString(),
+        },
+      })
+
+      const ANIMATION_COUNTDOWN_MS = 3000
+      const code = matchCode
+      match.timerId = setTimeout(() => {
+        const activeMatch = getMatch(code)
+        if (!activeMatch || activeMatch.status !== 'countdown') return
+
+        activeMatch.status = 'playing'
+
+        // Now run the actual game for the configured duration
+        activeMatch.timerId = setTimeout(() => {
+          const finishedMatch = finishMatch(code)
+          if (!finishedMatch) return
+
+          const sortedPlayers = [...finishedMatch.players.values()]
+            .map(serializePlayer)
+            .sort((a, b) => b.pingCount - a.pingCount)
+
+          broadcast(finishedMatch, {
+            type: 'match_finished',
+            payload: { players: sortedPlayers },
+          })
+        }, activeMatch.duration * 1000)
+      }, ANIMATION_COUNTDOWN_MS)
+
+      return
+    }
+
     if (msg.type === 'ping') {
       if (!matchCode || !playerId) return
 
@@ -126,6 +177,8 @@ app.get('/ws', { websocket: true }, (socket) => {
 
       const match = getMatch(matchCode)
       if (!match) return
+
+      if (match.status !== 'playing') return
 
       broadcast(match, {
         type: 'match_update',

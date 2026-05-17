@@ -1,6 +1,14 @@
+import { useState } from "react";
 import { PLAYER_COLORS } from "../constants";
 
 type Mode = "creating" | "joining";
+
+const DURATION_OPTIONS = [
+  { label: "10s", value: 10 },
+  { label: "15s", value: 15 },
+  { label: "30s", value: 30 },
+  { label: "60s", value: 60 },
+];
 
 type MatchSetupModalProps = {
   mode: Mode;
@@ -12,7 +20,7 @@ type MatchSetupModalProps = {
   onJoinCodeChange: (code: string) => void;
   errorMsg: string | null;
   onBack: () => void;
-  onSubmit: () => void;
+  onSubmit: (duration: number) => void;
 };
 
 export function MatchSetupModal({
@@ -27,6 +35,8 @@ export function MatchSetupModal({
   onBack,
   onSubmit,
 }: MatchSetupModalProps) {
+  const [duration, setDuration] = useState(30);
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-ink/25 p-4 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-2xl bg-beige p-8 shadow-2xl flex flex-col gap-6">
@@ -86,6 +96,30 @@ export function MatchSetupModal({
             </div>
           </div>
 
+          {mode === "creating" && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-ink/50">
+                Duração da partida
+              </label>
+              <div className="flex gap-2">
+                {DURATION_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setDuration(opt.value)}
+                    className={`flex-1 rounded-xl border-2 py-2 text-sm font-bold transition-colors duration-100
+                      ${duration === opt.value
+                        ? "border-ink bg-ink text-beige"
+                        : "border-ink/25 bg-transparent text-ink hover:border-ink/50 hover:bg-ink/7"
+                      }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {errorMsg && (
             <p className="text-sm font-medium" style={{ color: "#e63946" }}>
               {errorMsg}
@@ -103,7 +137,7 @@ export function MatchSetupModal({
           </button>
           <button
             type="button"
-            onClick={onSubmit}
+            onClick={() => onSubmit(duration)}
             className="flex-1 cursor-pointer rounded-xl border-2 border-ink bg-ink px-5 py-[11px] text-sm font-semibold tracking-[0.3px] text-beige transition-[background,border-color] duration-150 hover:bg-ink-deep active:bg-ink-deeper"
           >
             {mode === "creating" ? "Criar" : "Entrar"}
